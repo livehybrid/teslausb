@@ -55,14 +55,9 @@ function check_available_space_sd () {
   part1size=$(blockdev --getsize64 "${BOOT_DEVICE_PART}1")
   part2size=$(blockdev --getsize64 "${BOOT_DEVICE_PART}2")
   available_space=$((totalsize - part1size - part2size))
-<<<<<<< HEAD
-  # Require at least 12 GB of available space.
-  if [ "$available_space" -lt  $(( (1<<30) * 12)) ]
-=======
-
+  echo $available_space
   # Require at least 40 GB of available space.
-  if [ "$available_space" -lt  $(( (1<<30) * 40)) ]
->>>>>>> cd0d3492a795306d88b57f912c66195671daa1be
+  if [ "$available_space" -lt  $(( (1<<30) * 2)) ]
   then
     setup_progress "STOP: The MicroSD card is too small: $available_space bytes available."
     setup_progress "$(parted "${BOOT_DEVICE}" print)"
