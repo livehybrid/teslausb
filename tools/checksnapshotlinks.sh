@@ -1,6 +1,6 @@
 #!/bin/bash -eu
 
-BASE=/backingfiles/TeslaCam
+BASE=/mutable/TeslaCam
 REPAIR=false
 if [ "${1:-}" = "repair" ]
 then
@@ -14,7 +14,7 @@ function recentpathfor {
   echo "RecentClips/$filedate/$filename"
 }
 
-find /backingfiles/snapshots/ -type f -name \*.mp4 | sort -r | {
+find -L /backingfiles/snapshots/ -type f -name \*.mp4 | sort -r | {
   while read -r path
   do
     name=${path##/*TeslaCam/}

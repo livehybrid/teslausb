@@ -26,7 +26,7 @@ function linksnapshotfiletorecents {
   local file=$1
   local curmnt=$2
   local finalmnt=$3
-  local recents=/backingfiles/TeslaCam/RecentClips
+  local recents=/mutable/TeslaCam/RecentClips
 
   filename=${file##/*/}
   filedate=${filename:0:10}
@@ -38,8 +38,9 @@ function linksnapshotfiletorecents {
 }
 
 function make_links_for_snapshot {
-  local saved=/backingfiles/TeslaCam/SavedClips
-  local sentry=/backingfiles/TeslaCam/SentryClips
+  local saved=/mutable/TeslaCam/SavedClips
+  local sentry=/mutable/TeslaCam/SentryClips
+  local track=/mutable/TeslaCam/TeslaTrackMode
   if [ ! -d $saved ]
   then
     mkdir -p $saved
@@ -86,79 +87,120 @@ function make_links_for_snapshot {
     fi
     ln -sf "${f/$curmnt/$finalmnt}" "$sentry/$eventtime"
   done
+  # and finally the TrackMode files
+  for f in "$curmnt/TeslaTrackMode/"*
+  do
+    if [ ! -d "$track" ]
+    then
+      mkdir -p "$track"
+    fi
+    ln -sf "$f" "$track"
+  done
   log "made all links for $curmnt"
   $restore_nullglob
 }
 
-function snapshot {
-  # Only take a snapshot if the remaining free space is greater than
-  # the size of the cam disk image. Delete older snapshots if necessary
-  # to achieve that.
+function dehumanize () {
+  echo $(($(echo "$1" | sed 's/GB/G/;s/MB/M/;s/KB/K/;s/G/*1024M/;s/M/*1024K/;s/K/*1024/')))
+}
+
+function manage_free_space {
+  # Try to maintain 9 GB of free space, which should be enough to
+  # hold the next hour of recordings.
   # todo: this could be put in a background task and with a lower free
   # space requirement, to delete old snapshots just before running out
   # of space and thus make better use of space
-  local imgsize
-  # shellcheck disable=SC2046
-  imgsize=$(eval $(stat --format="echo \$((%b*%B))" /backingfiles/cam_disk.bin))
+  local reserve
+  reserve=$(dehumanize "9G")
   while true
   do
     local freespace
-    # shellcheck disable=SC2046
-    freespace=$(eval $(stat --file-system --format="echo \$((%f*%S))" /backingfiles/cam_disk.bin))
-    if [ "$freespace" -gt "$imgsize" ]
+    freespace=$(eval "$(stat --file-system --format="echo \$((%f*%S))" /backingfiles/cam_disk.bin)")
+    if [ "$freespace" -gt "$reserve" ]
     then
       break
     fi
     if ! stat /backingfiles/snapshots/snap-*/snap.bin > /dev/null 2>&1
     then
-      log "warning: low space for snapshots"
+      log "Warning: low space for new snapshots, but no snapshots exist."
+      log "Please use a larger storage medium or reduce CAM_SIZE"
       break
     fi
-    # shellcheck disable=SC2012
-    oldest=$(ls -ldC1 /backingfiles/snapshots/snap-* | head -1)
+    # if there's only one snapshot then we likely just took it, so don't immediately delete it
+    if [ "$(find /backingfiles/snapshots/ -name snap.bin 2> /dev/null | wc -l)" -lt 2 ]
+    then
+      # there's only one snapshot and yet we're low on space
+      log "Warning: low space for new snapshots, but only one snapshot exists."
+      log "Please use a larger storage medium or reduce CAM_SIZE"
+      break
+    fi
+
+    oldest=$(find /backingfiles/snapshots -maxdepth 1 -name 'snap-*' | sort | head -1)
     log "low space, deleting $oldest"
-    /root/bin/release_snapshot.sh "$oldest/mnt"
+    /root/bin/release_snapshot.sh "$oldest"
     rm -rf "$oldest"
   done
+}
 
+function snapshot {
+  # since taking a snapshot doesn't take much extra space, do that first,
+  # before cleaning up old snapshots to maintain free space.
   local oldnum=-1
   local newnum=0
   if stat /backingfiles/snapshots/snap-*/snap.bin > /dev/null 2>&1
   then
-    # shellcheck disable=SC2012
-    oldnum=$(ls -lC1 /backingfiles/snapshots/snap-*/snap.bin | tail -1 | tr -c -d '[:digit:]' | sed 's/^0*//' )
+    oldnum=$(find /backingfiles/snapshots/snap-* -maxdepth 1 -name snap.bin | sort | tail -1 | tr -c -d '[:digit:]' | sed 's/^0*//' )
     newnum=$((oldnum + 1))
   fi
   local oldname
   local newsnapdir
   oldname=/backingfiles/snapshots/snap-$(printf "%06d" "$oldnum")/snap.bin
-  newsnapdir=/backingfiles/snapshots/snap-$(printf "%06d" $newnum)
 
-  local newname=$newsnapdir/snap.bin
-  local tmpsnapdir=/backingfiles/snapshots/newsnap
-  local tmpsnapname=$tmpsnapdir/snap.bin
-  local tmpsnapmnt=$tmpsnapdir/mnt
-  log "taking snapshot of cam disk: $newname"
-  rm -rf "$tmpsnapdir"
-  /root/bin/mount_snapshot.sh /backingfiles/cam_disk.bin "$tmpsnapname" "$tmpsnapmnt"
+  # check that the previous snapshot is complete
+  if [ ! -e "${oldname}.toc" ] && [ "$oldnum" != "-1" ]
+  then
+    log "previous snapshot was incomplete, deleting"
+    rm -rf "$(dirname "$oldname")"
+    newnum=$((oldnum))
+    oldnum=$((oldnum - 1))
+    oldname=/backingfiles/snapshots/snap-$(printf "%06d" "$oldnum")/snap.bin
+  fi
+
+  newsnapdir=/backingfiles/snapshots/snap-$(printf "%06d" $newnum)
+  newsnapmnt=/tmp/snapshots/snap-$(printf "%06d" $newnum)
+
+  local newsnapname=$newsnapdir/snap.bin
+  log "taking snapshot of cam disk in $newsnapdir"
+  /root/bin/mount_snapshot.sh /backingfiles/cam_disk.bin "$newsnapname" "$newsnapmnt"
+  while ! systemctl --quiet is-active autofs
+  do
+    log "waiting for autofs to be active"
+    sleep 1
+  done
   log "took snapshot"
 
   # check whether this snapshot is actually different from the previous one
-  find "$tmpsnapmnt/TeslaCam" -type f -printf '%s %P\n' > "$tmpsnapname.toc"
-  log "comparing $oldname.toc and $tmpsnapname.toc"
-  if [[ ! -e "$oldname.toc" ]] || diff "$oldname.toc" "$tmpsnapname.toc" | grep -e '^>'
+  find "$newsnapmnt" -type f -printf '%s %P\n' > "${newsnapname}.toc_"
+  log "comparing new snapshot with $oldname"
+  if [[ ! -e "${oldname}.toc" ]] || diff "${oldname}.toc" "${newsnapname}.toc_" | grep -e '^>'
   then
-    make_links_for_snapshot "$tmpsnapmnt" "$newsnapdir/mnt"
-    mv "$tmpsnapdir" "$newsnapdir"
+    ln -s "$newsnapmnt" "$newsnapdir/mnt"
+    make_links_for_snapshot "$newsnapmnt" "$newsnapdir/mnt"
+    mv "${newsnapname}.toc_" "${newsnapname}.toc"
   else
     log "new snapshot is identical to previous one, discarding"
-    /root/bin/release_snapshot.sh "$tmpsnapmnt"
-    rm -rf "$tmpsnapdir"
+    /root/bin/release_snapshot.sh "$newsnapdir"
+    rm -rf "$newsnapdir"
   fi
 }
 
 if ! snapshot
 then
   log "failed to take snapshot"
+fi
+
+if ! manage_free_space
+then
+  log "failed to clean up old snapshots"
 fi
 

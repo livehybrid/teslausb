@@ -9,11 +9,6 @@ then
   echo "snapshot already mounted"
 fi
 
-if [ ! -d "$MNT" ]
-then
-  mkdir -p "$MNT"
-fi
-
 SNAPDIR=$(dirname "$SNAP")
 if [ ! -d "$SNAPDIR" ]
 then
@@ -33,9 +28,11 @@ cp --reflink=always "$SRC" "$SNAP"
 
 # create loopback and scan the partition table, this will create an additional loop
 # device in addition to the main loop device, e.g. /dev/loop0 and /dev/loop0p1
-losetup -P -f "$SNAP"
-PARTLOOP=$(losetup -j "$SNAP" | awk '{print $1}' | sed 's/:/p1/')
+
+LOOP=$(losetup --show -P -f "$SNAP")
+PARTLOOP=${LOOP}p1
 fsck "$PARTLOOP" -- -a || true
 
-mount -o ro "$PARTLOOP" "$MNT"
+# don't need to mount, because autofs will
+losetup -d "$LOOP"
 

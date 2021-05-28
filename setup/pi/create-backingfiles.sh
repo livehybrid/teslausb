@@ -1,9 +1,10 @@
 #!/bin/bash -eu
 
 function log_progress () {
-  # shellcheck disable=SC2034
-  if typeset -f setup_progress > /dev/null; then
+  if declare -F setup_progress > /dev/null
+  then
     setup_progress "create-backingfiles: $1"
+    return
   fi
   echo "create-backingfiles: $1"
 }
@@ -46,11 +47,9 @@ function is_percent() {
 
 available_space () {
   freespace=$(df --output=avail --block-size=1K "$BACKINGFILES_MOUNTPOINT/" | tail -n 1)
-  # leave 6 GB of free space for filesystem bookkeeping and snapshotting
-  # (in kilobytes so 6M KB)
-  # TODO: investigate whether this value can be smaller in general, or
-  # when SMB access is not enabled.
-  padding=$(dehumanize "6M")
+  # leave 10 GB of free space for filesystem bookkeeping and snapshotting
+  # (in kilobytes so 10M KB)
+  padding=$(dehumanize "10M")
   echo $((freespace-padding))
 }
 
@@ -90,8 +89,7 @@ function add_drive () {
   local partition_offset
   partition_offset=$(first_partition_offset "$filename")
 
-  losetup -o "$partition_offset" -f "$filename"
-  loopdev=$(losetup -j "$filename" | awk '{print $1}' | sed 's/://')
+  loopdev=$(losetup -o "$partition_offset" -f --show "$filename")
   log_progress "Creating filesystem with label '$label'"
   mkfs.vfat "$loopdev" -F 32 -n "$label"
   losetup -d "$loopdev"
@@ -107,10 +105,18 @@ function add_drive () {
   log_progress "updated /etc/fstab for $mountpoint"
 }
 
-function create_teslacam_directory () {
+function create_default_entries () {
   mount /mnt/cam
   mkdir /mnt/cam/TeslaCam
+  mkdir /mnt/cam/TeslaTrackMode
+  touch /mnt/cam/.metadata_never_index
   umount /mnt/cam
+  if [ -e /mnt/music ]
+  then
+    mount /mnt/music
+    touch /mnt/music/.metadata_never_index
+    umount /mnt/music
+  fi
 }
 
 CAM_DISK_FILE_NAME="$BACKINGFILES_MOUNTPOINT/cam_disk.bin"
@@ -164,5 +170,5 @@ else
   echo "options g_mass_storage file=$CAM_DISK_FILE_NAME removable=1 ro=0 stall=0 iSerialNumber=123456" > "$G_MASS_STORAGE_CONF_FILE_NAME"
 fi
 
-create_teslacam_directory
+create_default_entries
 log_progress "done"
