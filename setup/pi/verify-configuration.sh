@@ -56,7 +56,7 @@ function check_available_space_sd () {
   part1size=$(blockdev --getsize64 /dev/mmcblk0p1)
   part2size=$(blockdev --getsize64 /dev/mmcblk0p2)
   available_space=$((totalsize - part1size - part2size))
-
+  echo "$available_space"
   # Require at least 12 GB of available space.
   if [ "$available_space" -lt  $(( (1<<30) * 12)) ]
   then
