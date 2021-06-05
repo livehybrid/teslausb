@@ -277,7 +277,7 @@ function get_script () {
 function get_ancillary_setup_scripts () {
   get_script /tmp create-backingfiles-partition.sh setup/pi
   get_script /tmp create-backingfiles.sh setup/pi
-  get_script /tmp make-fs-readonly.sh setup/pi
+  get_script /tmp make-root-fs-readonly.sh setup/pi
   get_script /tmp configure.sh setup/pi
 }
 
