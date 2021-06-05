@@ -277,7 +277,8 @@ function get_script () {
 function get_ancillary_setup_scripts () {
   get_script /tmp create-backingfiles-partition.sh setup/pi
   get_script /tmp create-backingfiles.sh setup/pi
-  get_script /tmp make-root-fs-readonly.sh setup/pi
+  get_script /tmp 
+  -fs-readonly.sh setup/pi
   get_script /tmp configure.sh setup/pi
 }
 
@@ -384,7 +385,8 @@ function configure_hostname () {
 }
 
 function make_root_fs_readonly () {
-  /tmp/make-root-fs-readonly.sh
+  echo "Not setting to readonly FS"
+  #/tmp/make-root-fs-readonly.sh
 }
 
 function update_package_index () {
