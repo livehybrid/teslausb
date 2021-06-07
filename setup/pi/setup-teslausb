@@ -51,6 +51,7 @@ function read_setup_variables {
   newnamefor[aws_access_key_id]=AWS_ACCESS_KEY_ID
   newnamefor[aws_secret_key]=AWS_SECRET_ACCESS_KEY
   newnamefor[aws_sns_topic_arn]=AWS_SNS_TOPIC_ARN
+  newnamefor[splunk_deploymentserver]=SPLUNK_DEPLOYMENTSERVER
 
   local oldname
   for oldname in "${!newnamefor[@]}"
@@ -856,7 +857,7 @@ get_script /tmp configure-web.sh setup/pi
 /tmp/configure-web.sh
 
 get_script /tmp setup-splunk.sh setup/pi
-/tmp/setup-splunk.sh
+/tmp/setup-splunk.sh "$SPLUNK_DEPLOYMENTSERVER"
 
 # source setup-teslausb from .bashrc to set up completion
 if ! grep -q setup-teslausb /root/.bashrc
