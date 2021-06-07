@@ -859,7 +859,8 @@ get_script /tmp configure-web.sh setup/pi
 get_script /tmp setup-splunk.sh setup/pi
 
 SPLUNK_DEPLOYMENTSERVER=${SPLUNK_DEPLOYMENTSERVER:-false}
-/tmp/setup-splunk.sh "$SPLUNK_DEPLOYMENTSERVER"
+ENABLE_SPLUNK=${ENABLE_SPLUNK:-false}
+/tmp/setup-splunk.sh "$ENABLE_SPLUNK" "$SPLUNK_DEPLOYMENTSERVER"
 
 # source setup-teslausb from .bashrc to set up completion
 if ! grep -q setup-teslausb /root/.bashrc
