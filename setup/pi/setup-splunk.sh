@@ -27,6 +27,7 @@ chown -hR splunk /mutable/splunkforwarder
 /opt/splunkforwarder/bin/splunk enable boot-start -systemd-managed 0 -user splunk --accept-license
 
 if [ "$SPLUNK_DEPLOYMENTSERVER" != "false" ]
+then
   echo "Setting deployment server to $SPLUNK_DEPLOYMENTSERVER"
   /opt/splunkforwarder/bin/splunk set deploy-poll $SPLUNK_DEPLOYMENTSERVER
 else
