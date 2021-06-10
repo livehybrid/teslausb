@@ -8,7 +8,7 @@ if [ "$ENABLE_SPLUNK" = "true" ]
 then
 
 /opt/splunkforwarder/bin/splunk stop || echo "Splunk is not already running"
-killall splunkd 
+killall splunkd  || true
 #for good measure
 rm -rf /opt/splunkforwarder
 rm -rf /backingfiles/splunkforwarder
