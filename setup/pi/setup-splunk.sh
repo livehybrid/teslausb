@@ -23,20 +23,21 @@ cat <<EOF | sudo -u splunk tee /opt/splunkforwarder/etc/system/local/user-seed.c
 USERNAME=admin
 PASSWORD=Password1
 EOF
-
 chown -hR splunk /backingfiles/splunkforwarder
 
 /opt/splunkforwarder/bin/splunk enable boot-start -systemd-managed 0 -user splunk --accept-license
 
+/opt/splunkforwarder/bin/splunk restart
+
 if [ "$SPLUNK_DEPLOYMENTSERVER" != "false" ]
 then
   echo "Setting deployment server to $SPLUNK_DEPLOYMENTSERVER"
-  /opt/splunkforwarder/bin/splunk set deploy-poll $SPLUNK_DEPLOYMENTSERVER
+  /opt/splunkforwarder/bin/splunk set deploy-poll $SPLUNK_DEPLOYMENTSERVER -auth admin:Password1
 else
   echo "Not setting Splunk deployment server"
 fi
 
-/opt/splunkforwarder/bin/splunk start
+/opt/splunkforwarder/bin/splunk restart
 
 else
   echo "Not configuring Splunk - ENABLE_SPLUNK is false"
