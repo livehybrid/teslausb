@@ -8,6 +8,10 @@ if [ "$ENABLE_SPLUNK" = "true" ]
 then
 
 /opt/splunkforwarder/bin/splunk stop || echo "Splunk is not already running"
+killall splunkd 
+#for good measure
+rm -rf /opt/splunkforwarder
+rm -rf /backingfiles/splunkforwarder
 cd /backingfiles
 wget -O splunkforwarder-8.1.3-63079c59e632-Linux-arm.tgz 'https://www.splunk.com/bin/splunk/DownloadActivityServlet?architecture=ARMv6&platform=linux&version=8.1.3&product=universalforwarder&filename=splunkforwarder-8.1.3-63079c59e632-Linux-arm.tgz&wget=true'
 tar -xf splunkforwarder-8.1.3-63079c59e632-Linux-arm.tgz
@@ -15,6 +19,7 @@ rm -f splunkforwarder-8.1.3-63079c59e632-Linux-arm.tgz
 id -u splunk &>/dev/null || adduser --gecos "" --disabled-password splunk
 
 ln -s /backingfiles/splunkforwarder /opt/splunkforwarder || true
+
 chown -R splunk: /opt/splunkforwarder
 chown -R splunk: /backingfiles/splunkforwarder
 
