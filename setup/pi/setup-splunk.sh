@@ -15,6 +15,8 @@ rm -f splunkforwarder-8.1.3-63079c59e632-Linux-arm.tgz
 id -u splunk &>/dev/null || adduser --gecos "" --disabled-password splunk
 
 ln -s /mutable/splunkforwarder /opt/splunkforwarder || true
+chown -R splunk: /opt/splunkforwarder
+chown -R splunk: /mutable/splunkforwarder
 
 cat <<EOF | sudo -u splunk tee /opt/splunkforwarder/etc/system/local/user-seed.conf
 [user_info]
