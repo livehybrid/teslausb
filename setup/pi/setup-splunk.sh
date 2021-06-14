@@ -37,7 +37,7 @@ chown -hR splunk /backingfiles/splunkforwarder
 if [ "$SPLUNK_DEPLOYMENTSERVER" != "false" ]
 then
   echo "Setting deployment server to $SPLUNK_DEPLOYMENTSERVER"
-  /opt/splunkforwarder/bin/splunk set deploy-poll $SPLUNK_DEPLOYMENTSERVER -auth admin:Password1
+  /opt/splunkforwarder/bin/splunk set deploy-poll "$SPLUNK_DEPLOYMENTSERVER" -auth admin:Password1
 else
   echo "Not setting Splunk deployment server"
 fi
